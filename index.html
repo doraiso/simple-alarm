@@ -143,7 +143,12 @@
             let audioCtx = null;
             let titleBase = document.title;
             let titleBlinkId = null;
-            let warned = false; // ★追加：1分前ビープ済みか
+            let warned3 = false;
+            let warned1 = false;
+
+            let next1minBeepAt = null; // 1分帯で次に鳴らす残りms
+
+
 
 
             function pad2(n) { return String(n).padStart(2, "0"); }
@@ -177,17 +182,35 @@
                 if (audioCtx.state === "suspended") audioCtx.resume();
             }
 
-            function beep(durationMs = 180, freq = 880) {
+            function beep(durationMs = 180, freq = 880, volume = 0.08, type = "sine") {
                 if (!audioCtx) return;
                 const o = audioCtx.createOscillator();
                 const g = audioCtx.createGain();
-                o.type = "sine";
+                o.type = type;
                 o.frequency.value = freq;
-                g.gain.value = 0.08;
-                o.connect(g); g.connect(audioCtx.destination);
+                g.gain.value = volume;
+
+                o.connect(g);
+                g.connect(audioCtx.destination);
                 o.start();
                 setTimeout(() => { o.stop(); }, durationMs);
             }
+
+
+
+            function cue3min() {
+                setStatus("あと3分");
+                beep(140, 660, 0.16, "triangle");
+                setTimeout(() => beep(140, 660, 0.16, "triangle"), 220);
+            }
+
+
+            function cue1min() {
+                setStatus("あと1分");
+                beep(120, 523);
+                setTimeout(() => beep(120, 659), 200);
+            }
+
 
             function startTitleBlink() {
                 if (titleBlinkId) return;
@@ -225,15 +248,34 @@
                 remainingMs = endAt - Date.now();
                 updateDisplay();
 
-                // ★ 1分前予告（1回だけ）
-                if (!warned && remainingMs <= 60 * 1000 && remainingMs > 0) {
-                    warned = true;
-                    setStatus("あと1分");
-                    beep(120, 440); // 低め・短め
+                // 3分前（180秒）
+                if (!warned3 && remainingMs <= 180 * 1000 && remainingMs > 60 * 1000) {
+                    warned3 = true;
+                    cue3min();
+                }
+
+                // 1分前（60秒）
+                // 1分帯（60秒～0秒）
+                if (remainingMs <= 60 * 1000 && remainingMs > 0) {
+
+                    // 1分帯に入った瞬間（1回だけ）
+                    if (!warned1) {
+                        warned1 = true;
+                        cue1min();               // 2音
+                        next1minBeepAt = 50 * 1000; // 次は残り50秒で
+                    }
+
+                    // 1分帯の10秒おきビープ（50,40,30,20,10）
+                    if (next1minBeepAt !== null && remainingMs <= next1minBeepAt) {
+                        beep(70, 523, 0.10);     // 短く
+                        next1minBeepAt -= 10 * 1000;
+                        if (next1minBeepAt <= 0) next1minBeepAt = null;
+                    }
                 }
 
                 if (remainingMs <= 0) timeUp();
             }
+
 
 
             function applyMinutes() {
@@ -257,11 +299,15 @@
                 stopTitleBlink();
 
                 ensureAudio();
-                beep(80, 660); // 開始の合図
+                beep(40, 330, 0.05); // 開始音を地味に
+
 
                 if (!timerId) {
                     // 新規開始
-                    warned = false; // ★ ここでリセット
+                    // 新規開始
+                    warned3 = false; // ★ここ
+                    warned1 = false; // ★ここ
+                    next1minBeepAt = null; // ★追加
                     endAt = Date.now() + remainingMs;
                     timerId = setInterval(tick, 200);
                     setStatus("実行中");
@@ -301,7 +347,9 @@
             resetBtn.addEventListener("click", () => {
                 stopTimer();
                 paused = false;
-                warned = false; // ★ ここ
+                warned3 = false; // ★ここ
+                warned1 = false; // ★ここ
+                next1minBeepAt = null; // ★追加
                 stopTitleBlink();
                 cardEl.classList.remove("flash");
                 applyMinutes();
