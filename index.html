@@ -147,11 +147,7 @@
             let warned1 = false;
 
             let next1minBeepAt = null; // 1分帯で次に鳴らす残りms
-            let nextFinalBeepAt = null; // 残り30秒帯で次に鳴らす残りms
-
-
-
-
+            let nextFinalBeepAt = null; // 残り60秒帯で次に鳴らす残りms
 
             function pad2(n) { return String(n).padStart(2, "0"); }
 
@@ -256,22 +252,32 @@
                     cue3min();
                 }
 
-                // 残り30秒帯（30秒～0秒）：1秒おきビープ
-                if (remainingMs <= 30 * 1000 && remainingMs > 0) {
+                // 残り60秒帯（60秒～0秒）：1秒おきビープ
+                if (remainingMs <= 60 * 1000 && remainingMs > 0) {
 
-                    // 30秒帯に入った瞬間に初期化（1回だけ）
-                    if (nextFinalBeepAt === null) {
-                        nextFinalBeepAt = 29 * 1000; // 次は残り29秒で鳴らす
+                    // 1分帯に入った瞬間（1回だけ）
+                    if (!warned1) {
+                        warned1 = true;
+                        cue1min();                 // 2音（開始合図）
+                        nextFinalBeepAt = null;    // 念のため初期化
                     }
 
-                    // 1秒おき（29,28,...,1）
-                    while (nextFinalBeepAt !== null && remainingMs <= nextFinalBeepAt) {
-                        // “焦らせ音”：短く・高め（好みで調整）
+                    // 60秒未満に入った瞬間に初期化（1回だけ）
+                    if (nextFinalBeepAt === null) {
+                        nextFinalBeepAt = 59 * 1000; // 次は残り59秒で鳴らす
+                    }
+
+                    // 1秒おき（59,58,...,1）※1tickで最大1回
+                    if (nextFinalBeepAt !== null && remainingMs <= nextFinalBeepAt) {
                         beep(35, 880, 0.06, "triangle");
-                        nextFinalBeepAt -= 1000;
+                        // 59〜31秒：2秒おき / 30〜1秒：1秒おき
+                        const step = (nextFinalBeepAt > 30 * 1000) ? 2000 : 1000;
+
+                        nextFinalBeepAt -= step;
                         if (nextFinalBeepAt <= 0) nextFinalBeepAt = null;
                     }
                 }
+
 
 
                 if (remainingMs <= 0) timeUp();
