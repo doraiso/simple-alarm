@@ -147,6 +147,8 @@
             let warned1 = false;
 
             let next1minBeepAt = null; // 1分帯で次に鳴らす残りms
+            let nextFinalBeepAt = null; // 残り30秒帯で次に鳴らす残りms
+
 
 
 
@@ -254,24 +256,23 @@
                     cue3min();
                 }
 
-                // 1分前（60秒）
-                // 1分帯（60秒～0秒）
-                if (remainingMs <= 60 * 1000 && remainingMs > 0) {
+                // 残り30秒帯（30秒～0秒）：1秒おきビープ
+                if (remainingMs <= 30 * 1000 && remainingMs > 0) {
 
-                    // 1分帯に入った瞬間（1回だけ）
-                    if (!warned1) {
-                        warned1 = true;
-                        cue1min();               // 2音
-                        next1minBeepAt = 50 * 1000; // 次は残り50秒で
+                    // 30秒帯に入った瞬間に初期化（1回だけ）
+                    if (nextFinalBeepAt === null) {
+                        nextFinalBeepAt = 29 * 1000; // 次は残り29秒で鳴らす
                     }
 
-                    // 1分帯の10秒おきビープ（50,40,30,20,10）
-                    if (next1minBeepAt !== null && remainingMs <= next1minBeepAt) {
-                        beep(70, 523, 0.10);     // 短く
-                        next1minBeepAt -= 10 * 1000;
-                        if (next1minBeepAt <= 0) next1minBeepAt = null;
+                    // 1秒おき（29,28,...,1）
+                    while (nextFinalBeepAt !== null && remainingMs <= nextFinalBeepAt) {
+                        // “焦らせ音”：短く・高め（好みで調整）
+                        beep(35, 880, 0.06, "triangle");
+                        nextFinalBeepAt -= 1000;
+                        if (nextFinalBeepAt <= 0) nextFinalBeepAt = null;
                     }
                 }
+
 
                 if (remainingMs <= 0) timeUp();
             }
@@ -308,6 +309,7 @@
                     warned3 = false; // ★ここ
                     warned1 = false; // ★ここ
                     next1minBeepAt = null; // ★追加
+                    nextFinalBeepAt = null; // ★追加
                     endAt = Date.now() + remainingMs;
                     timerId = setInterval(tick, 200);
                     setStatus("実行中");
@@ -350,6 +352,7 @@
                 warned3 = false; // ★ここ
                 warned1 = false; // ★ここ
                 next1minBeepAt = null; // ★追加
+                nextFinalBeepAt = null; // ★追加
                 stopTitleBlink();
                 cardEl.classList.remove("flash");
                 applyMinutes();
